@@ -60,10 +60,12 @@ TEST(CommandLineFlagsTest, CanBeAccessedInCodeOnceGTestHIsIncluded) {
 #include <string.h>
 #include <time.h>
 
+#include <cstdint>
 #include <map>
-#include <vector>
 #include <ostream>
+#include <type_traits>
 #include <unordered_set>
+#include <vector>
 
 #include "gtest/gtest-spi.h"
 #include "src/gtest-internal-inl.h"
@@ -226,14 +228,12 @@ using testing::TestProperty;
 using testing::TestResult;
 using testing::TimeInMillis;
 using testing::UnitTest;
-using testing::internal::AddReference;
 using testing::internal::AlwaysFalse;
 using testing::internal::AlwaysTrue;
 using testing::internal::AppendUserMessage;
 using testing::internal::ArrayAwareFind;
 using testing::internal::ArrayEq;
 using testing::internal::CodePointToUtf8;
-using testing::internal::CompileAssertTypesEqual;
 using testing::internal::CopyArray;
 using testing::internal::CountIf;
 using testing::internal::EqFailure;
@@ -250,7 +250,6 @@ using testing::internal::GetTestTypeId;
 using testing::internal::GetTimeInMillis;
 using testing::internal::GetTypeId;
 using testing::internal::GetUnitTestImpl;
-using testing::internal::Int32;
 using testing::internal::Int32FromEnvOrDie;
 using testing::internal::IsAProtocolMessage;
 using testing::internal::IsContainer;
@@ -262,8 +261,6 @@ using testing::internal::OsStackTraceGetterInterface;
 using testing::internal::ParseInt32Flag;
 using testing::internal::RelationToSourceCopy;
 using testing::internal::RelationToSourceReference;
-using testing::internal::RemoveConst;
-using testing::internal::RemoveReference;
 using testing::internal::ShouldRunTestOnShard;
 using testing::internal::ShouldShard;
 using testing::internal::ShouldUseColor;
@@ -274,7 +271,6 @@ using testing::internal::StreamableToString;
 using testing::internal::String;
 using testing::internal::TestEventListenersAccessor;
 using testing::internal::TestResultAccessor;
-using testing::internal::UInt32;
 using testing::internal::UnitTestImpl;
 using testing::internal::WideStringToUtf8;
 using testing::internal::edit_distance::CalculateOptimalEdits;
@@ -791,7 +787,7 @@ TEST(RandomDeathTest, GeneratesCrashesOnInvalidRange) {
 }
 
 TEST(RandomTest, GeneratesNumbersWithinRange) {
-  const UInt32 kRange = 10000;
+  constexpr uint32_t kRange = 10000;
   testing::internal::Random random(12345);
   for (int i = 0; i < 10; i++) {
     EXPECT_LT(random.Generate(kRange), kRange) << " for iteration " << i;
@@ -804,10 +800,10 @@ TEST(RandomTest, GeneratesNumbersWithinRange) {
 }
 
 TEST(RandomTest, RepeatsWhenReseeded) {
-  const int kSeed = 123;
-  const int kArraySize = 10;
-  const UInt32 kRange = 10000;
-  UInt32 values[kArraySize];
+  constexpr int kSeed = 123;
+  constexpr int kArraySize = 10;
+  constexpr uint32_t kRange = 10000;
+  uint32_t values[kArraySize];
 
   testing::internal::Random random(kSeed);
   for (int i = 0; i < kArraySize; i++) {
@@ -1775,7 +1771,7 @@ TEST(Int32FromGTestEnvTest, ParsesAndReturnsValidValue) {
 // Tests that ParseInt32Flag() returns false and doesn't change the
 // output value when the flag has wrong format
 TEST(ParseInt32FlagTest, ReturnsFalseForInvalidFlag) {
-  Int32 value = 123;
+  int32_t value = 123;
   EXPECT_FALSE(ParseInt32Flag("--a=100", "b", &value));
   EXPECT_EQ(123, value);
 
@@ -1788,7 +1784,7 @@ TEST(ParseInt32FlagTest, ReturnsFalseForInvalidFlag) {
 TEST(ParseInt32FlagTest, ReturnsDefaultWhenValueOverflows) {
   printf("(expecting 2 warnings)\n");
 
-  Int32 value = 123;
+  int32_t value = 123;
   EXPECT_FALSE(ParseInt32Flag("--abc=12345678987654321", "abc", &value));
   EXPECT_EQ(123, value);
 
@@ -1802,7 +1798,7 @@ TEST(ParseInt32FlagTest, ReturnsDefaultWhenValueOverflows) {
 TEST(ParseInt32FlagTest, ReturnsDefaultWhenValueIsInvalid) {
   printf("(expecting 2 warnings)\n");
 
-  Int32 value = 123;
+  int32_t value = 123;
   EXPECT_FALSE(ParseInt32Flag("--abc=A1", "abc", &value));
   EXPECT_EQ(123, value);
 
@@ -1814,7 +1810,7 @@ TEST(ParseInt32FlagTest, ReturnsDefaultWhenValueIsInvalid) {
 // returns true when the flag represents a valid decimal integer in
 // the range of an Int32.
 TEST(ParseInt32FlagTest, ParsesAndReturnsValidValue) {
-  Int32 value = 123;
+  int32_t value = 123;
   EXPECT_TRUE(ParseInt32Flag("--" GTEST_FLAG_PREFIX_ "abc=456", "abc", &value));
   EXPECT_EQ(456, value);
 
@@ -1837,7 +1833,7 @@ TEST(Int32FromEnvOrDieTest, ParsesAndReturnsValidValue) {
 #endif  // !GTEST_OS_WINDOWS_MOBILE
 
 // Tests that Int32FromEnvOrDie() aborts with an error message
-// if the variable is not an Int32.
+// if the variable is not an int32_t.
 TEST(Int32FromEnvOrDieDeathTest, AbortsOnFailure) {
   SetEnv(GTEST_FLAG_PREFIX_UPPER_ "VAR", "xxx");
   EXPECT_DEATH_IF_SUPPORTED(
@@ -1846,7 +1842,7 @@ TEST(Int32FromEnvOrDieDeathTest, AbortsOnFailure) {
 }
 
 // Tests that Int32FromEnvOrDie() aborts with an error message
-// if the variable cannot be represented by an Int32.
+// if the variable cannot be represented by an int32_t.
 TEST(Int32FromEnvOrDieDeathTest, AbortsOnInt32Overflow) {
   SetEnv(GTEST_FLAG_PREFIX_UPPER_ "VAR", "1234567891234567891234");
   EXPECT_DEATH_IF_SUPPORTED(
@@ -2016,10 +2012,11 @@ void ExpectNonFatalFailureRecordingPropertyWithReservedKeyForCurrentTest(
 
 void ExpectNonFatalFailureRecordingPropertyWithReservedKeyForCurrentTestSuite(
     const char* key) {
-  const TestCase* test_case = UnitTest::GetInstance()->current_test_case();
-  ASSERT_TRUE(test_case != nullptr);
+  const testing::TestSuite* test_suite =
+      UnitTest::GetInstance()->current_test_suite();
+  ASSERT_TRUE(test_suite != nullptr);
   ExpectNonFatalFailureRecordingPropertyWithReservedKey(
-      test_case->ad_hoc_test_result(), key);
+      test_suite->ad_hoc_test_result(), key);
 }
 
 void ExpectNonFatalFailureRecordingPropertyWithReservedKeyOutsideOfTestSuite(
@@ -2049,8 +2046,10 @@ class UnitTestRecordPropertyTest :
         "time");
 
     Test::RecordProperty("test_case_key_1", "1");
+
     const testing::TestSuite* test_suite =
-        UnitTest::GetInstance()->current_test_case();
+        UnitTest::GetInstance()->current_test_suite();
+
     ASSERT_TRUE(test_suite != nullptr);
 
     ASSERT_EQ(1, test_suite->ad_hoc_test_result().test_property_count());
@@ -2167,12 +2166,12 @@ static Environment* record_property_env GTEST_ATTRIBUTE_UNUSED_ =
 
 // First, some predicates and predicate-formatters needed by the tests.
 
-// Returns true iff the argument is an even number.
+// Returns true if and only if the argument is an even number.
 bool IsEven(int n) {
   return (n % 2) == 0;
 }
 
-// A functor that returns true iff the argument is an even number.
+// A functor that returns true if and only if the argument is an even number.
 struct IsEvenFunctor {
   bool operator()(int n) { return IsEven(n); }
 };
@@ -2216,13 +2215,13 @@ struct AssertIsEvenFunctor {
   }
 };
 
-// Returns true iff the sum of the arguments is an even number.
+// Returns true if and only if the sum of the arguments is an even number.
 bool SumIsEven2(int n1, int n2) {
   return IsEven(n1 + n2);
 }
 
-// A functor that returns true iff the sum of the arguments is an even
-// number.
+// A functor that returns true if and only if the sum of the arguments is an
+// even number.
 struct SumIsEven3Functor {
   bool operator()(int n1, int n2, int n3) {
     return IsEven(n1 + n2 + n3);
@@ -3348,6 +3347,9 @@ TEST_F(SingleEvaluationTest, OtherCases) {
 void ThrowAnInteger() {
   throw 1;
 }
+void ThrowRuntimeError(const char* what) {
+  throw std::runtime_error(what);
+}
 
 // Tests that assertion arguments are evaluated exactly once.
 TEST_F(SingleEvaluationTest, ExceptionTests) {
@@ -3827,6 +3829,11 @@ TEST(AssertionTest, ASSERT_NO_THROW) {
   EXPECT_FATAL_FAILURE(ASSERT_NO_THROW(ThrowAnInteger()),
                        "Expected: ThrowAnInteger() doesn't throw an exception."
                        "\n  Actual: it throws.");
+  EXPECT_FATAL_FAILURE(ASSERT_NO_THROW(ThrowRuntimeError("A description")),
+                       "Expected: ThrowRuntimeError(\"A description\") "
+                       "doesn't throw an exception.\n  "
+                       "Actual: it throws std::exception-derived exception "
+                       "with description: \"A description\".");
 }
 
 // Tests ASSERT_ANY_THROW.
@@ -4564,6 +4571,11 @@ TEST(ExpectTest, EXPECT_NO_THROW) {
   EXPECT_NONFATAL_FAILURE(EXPECT_NO_THROW(ThrowAnInteger()),
                           "Expected: ThrowAnInteger() doesn't throw an "
                           "exception.\n  Actual: it throws.");
+  EXPECT_NONFATAL_FAILURE(EXPECT_NO_THROW(ThrowRuntimeError("A description")),
+                          "Expected: ThrowRuntimeError(\"A description\") "
+                          "doesn't throw an exception.\n  "
+                          "Actual: it throws std::exception-derived exception "
+                          "with description: \"A description\".");
 }
 
 // Tests EXPECT_ANY_THROW.
@@ -5343,7 +5355,7 @@ TEST_P(CodeLocationForTESTP, Verify) {
   VERIFY_CODE_LOCATION;
 }
 
-INSTANTIATE_TEST_SUITE_P(, CodeLocationForTESTP, Values(0));
+INSTANTIATE_TEST_SUITE_P(All, CodeLocationForTESTP, Values(0));
 
 template <typename T>
 class CodeLocationForTYPEDTEST : public Test {
@@ -5584,7 +5596,7 @@ struct Flags {
 
   // Creates a Flags struct where the gtest_random_seed flag has the given
   // value.
-  static Flags RandomSeed(Int32 random_seed) {
+  static Flags RandomSeed(int32_t random_seed) {
     Flags flags;
     flags.random_seed = random_seed;
     return flags;
@@ -5592,7 +5604,7 @@ struct Flags {
 
   // Creates a Flags struct where the gtest_repeat flag has the given
   // value.
-  static Flags Repeat(Int32 repeat) {
+  static Flags Repeat(int32_t repeat) {
     Flags flags;
     flags.repeat = repeat;
     return flags;
@@ -5608,7 +5620,7 @@ struct Flags {
 
   // Creates a Flags struct where the GTEST_FLAG(stack_trace_depth) flag has
   // the given value.
-  static Flags StackTraceDepth(Int32 stack_trace_depth) {
+  static Flags StackTraceDepth(int32_t stack_trace_depth) {
     Flags flags;
     flags.stack_trace_depth = stack_trace_depth;
     return flags;
@@ -5639,10 +5651,10 @@ struct Flags {
   bool list_tests;
   const char* output;
   bool print_time;
-  Int32 random_seed;
-  Int32 repeat;
+  int32_t random_seed;
+  int32_t repeat;
   bool shuffle;
-  Int32 stack_trace_depth;
+  int32_t stack_trace_depth;
   const char* stream_result_to;
   bool throw_on_failure;
 };
@@ -6170,7 +6182,7 @@ TEST_F(ParseFlagsTest, WideStrings) {
 #if GTEST_USE_OWN_FLAGFILE_FLAG_
 class FlagfileTest : public ParseFlagsTest {
  public:
-  virtual void SetUp() {
+  void SetUp() override {
     ParseFlagsTest::SetUp();
 
     testdata_path_.Set(internal::FilePath(
@@ -6180,7 +6192,7 @@ class FlagfileTest : public ParseFlagsTest {
     EXPECT_TRUE(testdata_path_.CreateFolder());
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     testing::internal::posix::RmDir(testdata_path_.c_str());
     ParseFlagsTest::TearDown();
   }
@@ -7101,69 +7113,12 @@ TEST(IsAProtocolMessageTest, ValueIsFalseWhenTypeIsNotAProtocolMessage) {
   EXPECT_FALSE(IsAProtocolMessage<const ConversionHelperBase>::value);
 }
 
-// Tests that CompileAssertTypesEqual compiles when the type arguments are
-// equal.
-TEST(CompileAssertTypesEqual, CompilesWhenTypesAreEqual) {
-  CompileAssertTypesEqual<void, void>();
-  CompileAssertTypesEqual<int*, int*>();
-}
-
-// Tests that RemoveReference does not affect non-reference types.
-TEST(RemoveReferenceTest, DoesNotAffectNonReferenceType) {
-  CompileAssertTypesEqual<int, RemoveReference<int>::type>();
-  CompileAssertTypesEqual<const char, RemoveReference<const char>::type>();
-}
-
-// Tests that RemoveReference removes reference from reference types.
-TEST(RemoveReferenceTest, RemovesReference) {
-  CompileAssertTypesEqual<int, RemoveReference<int&>::type>();
-  CompileAssertTypesEqual<const char, RemoveReference<const char&>::type>();
-}
-
-// Tests GTEST_REMOVE_REFERENCE_.
-
-template <typename T1, typename T2>
-void TestGTestRemoveReference() {
-  CompileAssertTypesEqual<T1, GTEST_REMOVE_REFERENCE_(T2)>();
-}
-
-TEST(RemoveReferenceTest, MacroVersion) {
-  TestGTestRemoveReference<int, int>();
-  TestGTestRemoveReference<const char, const char&>();
-}
-
-
-// Tests that RemoveConst does not affect non-const types.
-TEST(RemoveConstTest, DoesNotAffectNonConstType) {
-  CompileAssertTypesEqual<int, RemoveConst<int>::type>();
-  CompileAssertTypesEqual<char&, RemoveConst<char&>::type>();
-}
-
-// Tests that RemoveConst removes const from const types.
-TEST(RemoveConstTest, RemovesConst) {
-  CompileAssertTypesEqual<int, RemoveConst<const int>::type>();
-  CompileAssertTypesEqual<char[2], RemoveConst<const char[2]>::type>();
-  CompileAssertTypesEqual<char[2][3], RemoveConst<const char[2][3]>::type>();
-}
-
-// Tests GTEST_REMOVE_CONST_.
-
-template <typename T1, typename T2>
-void TestGTestRemoveConst() {
-  CompileAssertTypesEqual<T1, GTEST_REMOVE_CONST_(T2)>();
-}
-
-TEST(RemoveConstTest, MacroVersion) {
-  TestGTestRemoveConst<int, int>();
-  TestGTestRemoveConst<double&, double&>();
-  TestGTestRemoveConst<char, const char>();
-}
-
 // Tests GTEST_REMOVE_REFERENCE_AND_CONST_.
 
 template <typename T1, typename T2>
 void TestGTestRemoveReferenceAndConst() {
-  CompileAssertTypesEqual<T1, GTEST_REMOVE_REFERENCE_AND_CONST_(T2)>();
+  static_assert(std::is_same<T1, GTEST_REMOVE_REFERENCE_AND_CONST_(T2)>::value,
+                "GTEST_REMOVE_REFERENCE_AND_CONST_ failed.");
 }
 
 TEST(RemoveReferenceToConstTest, Works) {
@@ -7174,35 +7129,12 @@ TEST(RemoveReferenceToConstTest, Works) {
   TestGTestRemoveReferenceAndConst<const char*, const char*>();
 }
 
-// Tests that AddReference does not affect reference types.
-TEST(AddReferenceTest, DoesNotAffectReferenceType) {
-  CompileAssertTypesEqual<int&, AddReference<int&>::type>();
-  CompileAssertTypesEqual<const char&, AddReference<const char&>::type>();
-}
-
-// Tests that AddReference adds reference to non-reference types.
-TEST(AddReferenceTest, AddsReference) {
-  CompileAssertTypesEqual<int&, AddReference<int>::type>();
-  CompileAssertTypesEqual<const char&, AddReference<const char>::type>();
-}
-
-// Tests GTEST_ADD_REFERENCE_.
-
-template <typename T1, typename T2>
-void TestGTestAddReference() {
-  CompileAssertTypesEqual<T1, GTEST_ADD_REFERENCE_(T2)>();
-}
-
-TEST(AddReferenceTest, MacroVersion) {
-  TestGTestAddReference<int&, int>();
-  TestGTestAddReference<const char&, const char&>();
-}
-
 // Tests GTEST_REFERENCE_TO_CONST_.
 
 template <typename T1, typename T2>
 void TestGTestReferenceToConst() {
-  CompileAssertTypesEqual<T1, GTEST_REFERENCE_TO_CONST_(T2)>();
+  static_assert(std::is_same<T1, GTEST_REFERENCE_TO_CONST_(T2)>::value,
+                "GTEST_REFERENCE_TO_CONST_ failed.");
 }
 
 TEST(GTestReferenceToConstTest, Works) {
@@ -7433,20 +7365,15 @@ TEST(IndexSequence, MakeIndexSequence) {
 // ElemFromList
 TEST(ElemFromList, Basic) {
   using testing::internal::ElemFromList;
-  using Idx = testing::internal::MakeIndexSequence<3>::type;
+  EXPECT_TRUE(
+      (std::is_same<int, ElemFromList<0, int, double, char>::type>::value));
+  EXPECT_TRUE(
+      (std::is_same<double, ElemFromList<1, int, double, char>::type>::value));
+  EXPECT_TRUE(
+      (std::is_same<char, ElemFromList<2, int, double, char>::type>::value));
   EXPECT_TRUE((
-      std::is_same<int, ElemFromList<0, Idx, int, double, char>::type>::value));
-  EXPECT_TRUE(
-      (std::is_same<double,
-                    ElemFromList<1, Idx, int, double, char>::type>::value));
-  EXPECT_TRUE(
-      (std::is_same<char,
-                    ElemFromList<2, Idx, int, double, char>::type>::value));
-  EXPECT_TRUE(
-      (std::is_same<
-          char, ElemFromList<7, testing::internal::MakeIndexSequence<12>::type,
-                             int, int, int, int, int, int, int, char, int, int,
-                             int, int>::type>::value));
+      std::is_same<char, ElemFromList<7, int, int, int, int, int, int, int,
+                                      char, int, int, int, int>::type>::value));
 }
 
 // FlatTuple
@@ -7519,22 +7446,7 @@ TEST(SkipPrefixTest, DoesNotSkipWhenPrefixDoesNotMatch) {
 }
 
 // Tests ad_hoc_test_result().
-
-class AdHocTestResultTest : public testing::Test {
- protected:
-  static void SetUpTestSuite() {
-    FAIL() << "A failure happened inside SetUpTestSuite().";
-  }
-};
-
-TEST_F(AdHocTestResultTest, AdHocTestResultForTestSuiteShowsFailure) {
-  const testing::TestResult& test_result = testing::UnitTest::GetInstance()
-                                               ->current_test_suite()
-                                               ->ad_hoc_test_result();
-  EXPECT_TRUE(test_result.Failed());
-}
-
-TEST_F(AdHocTestResultTest, AdHocTestResultTestForUnitTestDoesNotShowFailure) {
+TEST(AdHocTestResultTest, AdHocTestResultForUnitTestDoesNotShowFailure) {
   const testing::TestResult& test_result =
       testing::UnitTest::GetInstance()->ad_hoc_test_result();
   EXPECT_FALSE(test_result.Failed());
