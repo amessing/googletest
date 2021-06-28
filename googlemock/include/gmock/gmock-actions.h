@@ -127,8 +127,8 @@
 
 // GOOGLETEST_CM0002 DO NOT DELETE
 
-#ifndef GOOGLETEST_GOOGLEMOCK_INCLUDE_GMOCK_GMOCK_ACTIONS_H_
-#define GOOGLETEST_GOOGLEMOCK_INCLUDE_GMOCK_GMOCK_ACTIONS_H_
+#ifndef GOOGLEMOCK_INCLUDE_GMOCK_GMOCK_ACTIONS_H_
+#define GOOGLEMOCK_INCLUDE_GMOCK_GMOCK_ACTIONS_H_
 
 #ifndef _WIN32_WCE
 # include <errno.h>
@@ -1520,7 +1520,7 @@ struct ActionImpl<R(Args...), Impl> : ImplBase<Impl>::type {
     // types instantiated.  Up to 10 of the args that are provided by the
     // args_type get passed, followed by a dummy of unspecified type for the
     // remainder up to 10 explicit args.
-    static const ExcessiveArg kExcessArg;
+    static constexpr ExcessiveArg kExcessArg{};
     return static_cast<const Impl&>(*this).template gmock_PerformImpl<
         /*function_type=*/function_type, /*return_type=*/R,
         /*args_type=*/args_type,
@@ -1684,4 +1684,4 @@ template <typename F, typename Impl>
 # pragma warning(pop)
 #endif
 
-#endif  // GOOGLETEST_GOOGLEMOCK_INCLUDE_GMOCK_GMOCK_ACTIONS_H_
+#endif  // GOOGLEMOCK_INCLUDE_GMOCK_GMOCK_ACTIONS_H_
